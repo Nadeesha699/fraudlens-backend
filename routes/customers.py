@@ -225,11 +225,9 @@ def get_customer_full_profile(customer_id):
                 suspicious_reason,
                 risk_level,
                 status,
-                detected_at,
                 updated_at
             FROM suspicious_customers
             WHERE customer_id = %s
-            ORDER BY detected_at DESC
             """,
             (customer_id,)
         )
