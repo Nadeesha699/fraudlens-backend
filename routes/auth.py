@@ -14,27 +14,33 @@ auth_bp = Blueprint("auth", __name__)
 def register():
 
     data = request.get_json()
-
+    employee_id = data.get("employee_id")
     name = data.get("name")
     email = data.get("email")
+    phone = data.get("phone")
     password = data.get("password")
-    role = data.get("role", "staff")
+    role = data.get("role")
 
-    if not name or not email or not password:
+    if not name or not email or not password or not phone or not employee_id:
         return jsonify({
-            "message": "Name, email and password are required"
+            "error": "Name, email, phone number, employee_id and password are required"
         }), 400
 
-    if role not in ["staff", "manager"]:
+    if len(password) < 8:
         return jsonify({
-            "message": "Invalid role"
+            "error": "Password must contain at least 8 characters"
+        }), 400
+
+    if role not in ["STAFF", "MANAGER"]:
+        return jsonify({
+            "error": "Invalid role"
         }), 400
 
     connection = get_db_connection()
 
     if not connection:
         return jsonify({
-            "message": "Database connection failed"
+            "error": "Database connection failed"
         }), 500
 
     cursor = connection.cursor(dictionary=True)
@@ -50,7 +56,7 @@ def register():
 
         if existing_user:
             return jsonify({
-                "message": "Email already registered"
+                "error": "Email already registered"
             }), 409
 
         password_hash = hash_password(password)
@@ -58,17 +64,28 @@ def register():
         cursor.execute(
             """
             INSERT INTO users
-            (name, email, password_hash, role)
-            VALUES (%s, %s, %s, %s)
+            (employee_id, name, email, phone, password_hash, role)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (name, email, password_hash, role)
+            (employee_id, name, email, phone, password_hash, role)
         )
 
         connection.commit()
 
         return jsonify({
-            "message": "Registration successful"
+            "message": "Registration successful",
+            "staff_id": employee_id
         }), 201
+
+    except Exception as e:
+
+        if connection:
+            connection.rollback()
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+     
 
     finally:
         cursor.close()
@@ -85,14 +102,14 @@ def login():
 
     if not email or not password:
         return jsonify({
-            "message": "Email and password are required"
+            "error": "Email and password are required"
         }), 400
 
     connection = get_db_connection()
 
     if not connection:
         return jsonify({
-            "message": "Database connection failed"
+            "error": "Database connection failed"
         }), 500
 
     cursor = connection.cursor(dictionary=True)
@@ -101,8 +118,15 @@ def login():
 
         cursor.execute(
             """
-            SELECT id, name, email, password_hash,
-                   role, is_verified, is_active
+            SELECT
+                id,
+                employee_id,
+                name,
+                email,
+                password_hash,
+                phone,
+                role,
+                status
             FROM users
             WHERE email = %s
             """,
@@ -111,24 +135,35 @@ def login():
 
         user = cursor.fetchone()
 
+        # User not found
         if not user:
             return jsonify({
-                "message": "Invalid email or password"
+                "error": "Invalid email or password"
             }), 401
 
+        # Password check
         if not verify_password(
             password,
             user["password_hash"]
         ):
             return jsonify({
-                "message": "Invalid email or password"
+                "error": "Invalid email or password"
             }), 401
 
-        if not user["is_active"]:
+        # Account pending
+        if user["status"] == "PENDING":
             return jsonify({
-                "message": "Account is inactive"
+                "error": "Your account is waiting for manager verification"
             }), 403
 
+        # Account suspended
+        if user["status"] == "SUSPENDED":
+            return jsonify({
+                "error": "Your account has been suspended"
+            }), 403
+        
+
+        # Create JWT token
         token = create_token(
             user["id"],
             user["role"]
@@ -139,12 +174,20 @@ def login():
             "token": token,
             "user": {
                 "id": user["id"],
+                "employee_id": user["employee_id"],
                 "name": user["name"],
                 "email": user["email"],
+                "phone": user["phone"],
                 "role": user["role"],
-                "is_verified": bool(user["is_verified"])
+                "status": user["status"]
             }
-        })
+        }), 200
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
 
     finally:
         cursor.close()
