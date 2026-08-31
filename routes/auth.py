@@ -190,3 +190,442 @@ def login():
     finally:
         cursor.close()
         connection.close()
+
+@auth_bp.route("/profile/<int:user_id>", methods=["GET"])
+def get_user_profile(user_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            SELECT
+                id,
+                employee_id,
+                name,
+                email,
+                phone,
+                role,
+                status,
+                created_at,
+                updated_at
+            FROM users
+            WHERE id = %s
+        """
+
+        cursor.execute(query, (user_id,))
+
+        user = cursor.fetchone()
+
+        if not user:
+
+            return jsonify({
+                "success": False,
+                "error": "User not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "user": user
+        }), 200
+
+    except Exception as e:
+
+        print("Get user profile error:", e)
+
+        return jsonify({
+            "success": False,
+            "error": "Failed to load user profile"
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection:
+            connection.close()  
+
+@auth_bp.route("/profile/<int:user_id>", methods=["PUT"])
+def update_user_profile(user_id):
+
+    connection = None
+    cursor = None
+
+    try:
+
+        data = request.get_json()
+
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip()
+        phone = data.get("phone", "").strip()
+
+
+        # =========================
+        # VALIDATION
+        # =========================
+
+        if not name:
+            return jsonify({
+                "success": False,
+                "error": "Name is required"
+            }), 400
+
+
+        if not email:
+            return jsonify({
+                "success": False,
+                "error": "Email is required"
+            }), 400
+
+
+        connection = get_db_connection()
+
+        cursor = connection.cursor(
+            dictionary=True
+        )
+
+
+        # =========================
+        # CHECK USER EXISTS
+        # =========================
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,)
+        )
+
+        user = cursor.fetchone()
+
+
+        if not user:
+
+            return jsonify({
+                "success": False,
+                "error": "User not found"
+            }), 404
+
+
+        # =========================
+        # CHECK EMAIL EXISTS
+        # =========================
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE email = %s
+            AND id != %s
+            """,
+            (
+                email,
+                user_id
+            )
+        )
+
+        existing_email = cursor.fetchone()
+
+
+        if existing_email:
+
+            return jsonify({
+                "success": False,
+                "error": "Email is already in use"
+            }), 400
+
+
+        # =========================
+        # UPDATE USER
+        # =========================
+
+        query = """
+            UPDATE users
+            SET
+                name = %s,
+                email = %s,
+                phone = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """
+
+
+        cursor.execute(
+            query,
+            (
+                name,
+                email,
+                phone if phone else None,
+                user_id
+            )
+        )
+
+
+        connection.commit()
+
+
+        # =========================
+        # GET UPDATED USER
+        # =========================
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                employee_id,
+                name,
+                email,
+                phone,
+                role,
+                status,
+                created_at,
+                updated_at
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,)
+        )
+
+
+        updated_user = cursor.fetchone()
+
+
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully",
+            "user": updated_user
+        }), 200
+
+
+    except Exception as e:
+
+        print(
+            "Update profile error:",
+            e
+        )
+
+
+        if connection:
+            connection.rollback()
+
+
+        return jsonify({
+            "success": False,
+            "error": "Failed to update profile"
+        }), 500
+
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection:
+            connection.close()
+
+@auth_bp.route(
+    "/change-password/<int:user_id>",
+    methods=["PUT"]
+)
+def change_password(user_id):
+
+    connection = None
+    cursor = None
+
+    try:
+
+        data = request.get_json()
+
+        current_password = (
+            data.get("current_password", "")
+        )
+
+        new_password = (
+            data.get("new_password", "")
+        )
+
+        confirm_password = (
+            data.get("confirm_password", "")
+        )
+
+
+        # =========================
+        # VALIDATION
+        # =========================
+
+        if not current_password:
+            return jsonify({
+                "success": False,
+                "error": "Current password is required"
+            }), 400
+
+
+        if not new_password:
+            return jsonify({
+                "success": False,
+                "error": "New password is required"
+            }), 400
+
+
+        if not confirm_password:
+            return jsonify({
+                "success": False,
+                "error": "Please confirm your new password"
+            }), 400
+
+
+        if new_password != confirm_password:
+            return jsonify({
+                "success": False,
+                "error": "New passwords do not match"
+            }), 400
+
+
+        if len(new_password) < 8:
+            return jsonify({
+                "success": False,
+                "error": "New password must be at least 8 characters"
+            }), 400
+
+
+        # =========================
+        # DATABASE
+        # =========================
+
+        connection = get_db_connection()
+
+        cursor = connection.cursor(
+            dictionary=True
+        )
+
+
+        # =========================
+        # GET USER PASSWORD
+        # =========================
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                password_hash
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,)
+        )
+
+
+        user = cursor.fetchone()
+
+
+        if not user:
+
+            return jsonify({
+                "success": False,
+                "error": "User not found"
+            }), 404
+
+
+        # =========================
+        # CHECK CURRENT PASSWORD
+        # =========================
+
+        password_correct = (
+            verify_password(
+                user["password_hash"],
+                current_password
+            )
+        )
+
+
+        if not password_correct:
+
+            return jsonify({
+                "success": False,
+                "error": "Current password is incorrect"
+            }), 400
+
+
+        # =========================
+        # CHECK SAME PASSWORD
+        # =========================
+
+        if current_password == new_password:
+
+            return jsonify({
+                "success": False,
+                "error": "New password cannot be the same as your current password"
+            }), 400
+
+
+        # =========================
+        # HASH NEW PASSWORD
+        # =========================
+
+        new_password_hash = (
+            hash_password(
+                new_password
+            )
+        )
+
+
+        # =========================
+        # UPDATE PASSWORD
+        # =========================
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET
+                password_hash = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (
+                new_password_hash,
+                user_id
+            )
+        )
+
+
+        connection.commit()
+
+
+        return jsonify({
+            "success": True,
+            "message": "Password changed successfully"
+        }), 200
+
+
+    except Exception as e:
+
+        print(
+            "Change password error:",
+            e
+        )
+
+
+        if connection:
+            connection.rollback()
+
+
+        return jsonify({
+            "success": False,
+            "error": "Failed to change password"
+        }), 500
+
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection:
+            connection.close()            
+                  

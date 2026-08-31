@@ -4,7 +4,7 @@ from database import get_db_connection
 suspicious_bp = Blueprint("suspicious", __name__)
 
 
-@suspicious_bp.route("/suspicious-customers", methods=["GET"])
+@suspicious_bp.route("", methods=["GET"])
 def get_suspicious_customers():
 
     connection = None

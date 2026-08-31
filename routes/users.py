@@ -104,3 +104,4 @@ def delete_staff(user_id):
     finally:
         cursor.close()
         connection.close()
+        

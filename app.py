@@ -5,6 +5,7 @@ from routes.auth import auth_bp
 from routes.users import users_bp
 from routes.customers import customers_bp
 from routes.suspicious_customers import suspicious_bp
+from routes.transactions import transactions_bp
 
 
 app = Flask(__name__)
@@ -30,8 +31,14 @@ app.register_blueprint(
 
 app.register_blueprint(
     suspicious_bp,
-    url_prefix="/api"
+    url_prefix="/api/suspicious-customers"
 )
+
+app.register_blueprint(
+    transactions_bp,
+    url_prefix="/api/transactions"
+)
+
 
 
 @app.route("/")
