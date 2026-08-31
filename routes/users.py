@@ -1,14 +1,12 @@
 from flask import Blueprint, jsonify, request
 
 from database import get_db_connection
-from utils.security import token_required, manager_required
+# from utils.security import token_required, manager_required
 
 users_bp = Blueprint("users", __name__)
 
 
 @users_bp.route("/staff", methods=["GET"])
-@token_required
-@manager_required
 def get_staff():
 
     connection = get_db_connection()
@@ -42,8 +40,6 @@ def get_staff():
 
 
 @users_bp.route("/staff/<int:user_id>/verify", methods=["PUT"])
-@token_required
-@manager_required
 def verify_staff(user_id):
 
     connection = get_db_connection()
@@ -78,8 +74,6 @@ def verify_staff(user_id):
 
 
 @users_bp.route("/staff/<int:user_id>", methods=["DELETE"])
-@token_required
-@manager_required
 def delete_staff(user_id):
 
     connection = get_db_connection()

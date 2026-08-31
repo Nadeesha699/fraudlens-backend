@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 import pandas as pd
 
 from database import get_db_connection
-from utils.security import token_required
+# from utils.security import token_required
 
 customers_bp = Blueprint("customers", __name__)
 
 
 @customers_bp.route("", methods=["POST"])
-@token_required
+# @token_required
 def create_customer():
 
     data = request.get_json()
@@ -81,7 +81,6 @@ def create_customer():
 
 
 @customers_bp.route("", methods=["GET"])
-@token_required
 def get_customers():
 
     connection = get_db_connection()
@@ -125,7 +124,6 @@ def get_customers():
 
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"])
-@token_required
 def get_customer(customer_id):
 
     connection = get_db_connection()
@@ -168,7 +166,6 @@ def get_customer(customer_id):
         connection.close()
 
 @customers_bp.route("/<int:customer_id>/full-profile", methods=["GET"])
-@token_required
 def get_customer_full_profile(customer_id):
 
     conn = None
@@ -608,4 +605,208 @@ def upload_excel():
             "error":
             str(e)
 
-        }), 500        
+        }), 500  
+
+@customers_bp.route("/<int:customer_id>", methods=["PUT"])
+def update_customer(customer_id):
+
+  conn = None
+  cursor = None
+
+  try:
+
+      data = request.get_json()
+
+
+      name = data.get("name")
+      customer_number = data.get(
+          "customer_number"
+      )
+      nic = data.get("nic")
+      phone = data.get("phone")
+      email = data.get("email")
+      address = data.get("address")
+      status = data.get("status")
+
+
+      # ==========================
+      # VALIDATION
+      # ==========================
+
+      if not name or not customer_number:
+
+          return jsonify({
+              "error":
+                  "Name and customer number are required"
+          }), 400
+
+
+      valid_statuses = [
+          "PENDING",
+          "VERIFIED",
+          "REJECTED"
+      ]
+
+
+      if status not in valid_statuses:
+
+          return jsonify({
+              "error":
+                  "Invalid customer status"
+          }), 400
+
+
+      conn = get_db_connection()
+
+      cursor = conn.cursor(
+          dictionary=True
+      )
+
+
+      # ==========================
+      # CHECK CUSTOMER EXISTS
+      # ==========================
+
+      cursor.execute(
+          """
+          SELECT id
+          FROM customers
+          WHERE id = %s
+          """,
+          (customer_id,)
+      )
+
+
+      customer = cursor.fetchone()
+
+
+      if not customer:
+
+          return jsonify({
+              "error":
+                  "Customer not found"
+          }), 404
+
+
+      # ==========================
+      # CHECK DUPLICATE CUSTOMER NUMBER
+      # ==========================
+
+      cursor.execute(
+          """
+          SELECT id
+          FROM customers
+          WHERE customer_number = %s
+          AND id != %s
+          """,
+          (
+              customer_number,
+              customer_id
+          )
+      )
+
+
+      duplicate_customer = (
+          cursor.fetchone()
+      )
+
+
+      if duplicate_customer:
+
+          return jsonify({
+              "error":
+                  "Customer number already exists"
+          }), 400
+
+
+      # ==========================
+      # UPDATE CUSTOMER
+      # ==========================
+
+      cursor.execute(
+          """
+          UPDATE customers
+
+          SET
+
+              name = %s,
+
+              customer_number = %s,
+
+              nic = %s,
+
+              phone = %s,
+
+              email = %s,
+
+              address = %s,
+
+              status = %s,
+
+              updated_at = CURRENT_TIMESTAMP
+
+          WHERE id = %s
+          """,
+          (
+
+              name.strip(),
+
+              customer_number.strip(),
+
+              nic.strip()
+              if nic else None,
+
+              phone.strip()
+              if phone else None,
+
+              email.strip()
+              if email else None,
+
+              address.strip()
+              if address else None,
+
+              status,
+
+              customer_id
+
+          )
+      )
+
+
+      conn.commit()
+
+
+      return jsonify({
+
+          "message":
+              "Customer updated successfully",
+
+          "customer_id":
+              customer_id
+
+      }), 200
+
+
+  except Exception as e:
+
+      if conn:
+          conn.rollback()
+
+
+      return jsonify({
+
+          "error":
+              str(e)
+
+      }), 500
+
+
+  finally:
+
+      if cursor:
+          cursor.close()
+
+      if conn:
+          conn.close()
+
+          

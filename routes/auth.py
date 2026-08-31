@@ -4,7 +4,6 @@ from database import get_db_connection
 from utils.security import (
     hash_password,
     verify_password,
-    create_token
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -164,14 +163,13 @@ def login():
         
 
         # Create JWT token
-        token = create_token(
-            user["id"],
-            user["role"]
-        )
+        # token = create_token(
+        #     user["id"],
+        #     user["role"]
+        # )
 
         return jsonify({
             "message": "Login successful",
-            "token": token,
             "user": {
                 "id": user["id"],
                 "employee_id": user["employee_id"],
