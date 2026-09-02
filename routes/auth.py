@@ -162,11 +162,6 @@ def login():
             }), 403
         
 
-        # Create JWT token
-        # token = create_token(
-        #     user["id"],
-        #     user["role"]
-        # )
 
         return jsonify({
             "message": "Login successful",
@@ -263,10 +258,7 @@ def update_user_profile(user_id):
         email = data.get("email", "").strip()
         phone = data.get("phone", "").strip()
 
-
-        # =========================
         # VALIDATION
-        # =========================
 
         if not name:
             return jsonify({
@@ -288,10 +280,7 @@ def update_user_profile(user_id):
             dictionary=True
         )
 
-
-        # =========================
         # CHECK USER EXISTS
-        # =========================
 
         cursor.execute(
             """
@@ -312,10 +301,7 @@ def update_user_profile(user_id):
                 "error": "User not found"
             }), 404
 
-
-        # =========================
         # CHECK EMAIL EXISTS
-        # =========================
 
         cursor.execute(
             """
@@ -340,10 +326,7 @@ def update_user_profile(user_id):
                 "error": "Email is already in use"
             }), 400
 
-
-        # =========================
         # UPDATE USER
-        # =========================
 
         query = """
             UPDATE users
@@ -369,10 +352,7 @@ def update_user_profile(user_id):
 
         connection.commit()
 
-
-        # =========================
         # GET UPDATED USER
-        # =========================
 
         cursor.execute(
             """
@@ -454,10 +434,7 @@ def change_password(user_id):
             data.get("confirm_password", "")
         )
 
-
-        # =========================
         # VALIDATION
-        # =========================
 
         if not current_password:
             return jsonify({
@@ -494,20 +471,13 @@ def change_password(user_id):
             }), 400
 
 
-        # =========================
-        # DATABASE
-        # =========================
-
         connection = get_db_connection()
 
         cursor = connection.cursor(
             dictionary=True
         )
 
-
-        # =========================
         # GET USER PASSWORD
-        # =========================
 
         cursor.execute(
             """
@@ -531,15 +501,13 @@ def change_password(user_id):
                 "error": "User not found"
             }), 404
 
-
-        # =========================
         # CHECK CURRENT PASSWORD
-        # =========================
 
         password_correct = (
             verify_password(
-                user["password_hash"],
-                current_password
+                current_password,
+                user["password_hash"]
+                
             )
         )
 
@@ -551,10 +519,7 @@ def change_password(user_id):
                 "error": "Current password is incorrect"
             }), 400
 
-
-        # =========================
         # CHECK SAME PASSWORD
-        # =========================
 
         if current_password == new_password:
 
@@ -563,21 +528,11 @@ def change_password(user_id):
                 "error": "New password cannot be the same as your current password"
             }), 400
 
-
-        # =========================
         # HASH NEW PASSWORD
-        # =========================
 
-        new_password_hash = (
-            hash_password(
-                new_password
-            )
-        )
+        new_password_hash =  hash_password(new_password)
 
-
-        # =========================
         # UPDATE PASSWORD
-        # =========================
 
         cursor.execute(
             """

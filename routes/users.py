@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 
 from database import get_db_connection
-# from utils.security import token_required, manager_required
 
 users_bp = Blueprint("users", __name__)
 

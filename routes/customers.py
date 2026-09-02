@@ -2,13 +2,11 @@ from flask import Blueprint, request, jsonify
 import pandas as pd
 
 from database import get_db_connection
-# from utils.security import token_required
 
 customers_bp = Blueprint("customers", __name__)
 
 
 @customers_bp.route("", methods=["POST"])
-# @token_required
 def create_customer():
 
     data = request.get_json()
@@ -177,9 +175,7 @@ def get_customer_full_profile(customer_id):
 
         cursor = conn.cursor(dictionary=True)
 
-        # ==========================
         # CUSTOMER INFORMATION
-        # ==========================
 
         cursor.execute(
             """
@@ -208,10 +204,7 @@ def get_customer_full_profile(customer_id):
                 "error": "Customer not found"
             }), 404
 
-
-        # ==========================
         # SUSPICIOUS HISTORY
-        # ==========================
 
         cursor.execute(
             """
@@ -231,10 +224,7 @@ def get_customer_full_profile(customer_id):
 
         suspicious_records = cursor.fetchall()
 
-
-        # ==========================
         # TRANSACTION HISTORY
-        # ==========================
 
         cursor.execute(
             """
@@ -253,10 +243,7 @@ def get_customer_full_profile(customer_id):
 
         transactions = cursor.fetchall()
 
-
-        # ==========================
         # PROFILE SUMMARY
-        # ==========================
 
         total_transactions = len(transactions)
 
@@ -384,10 +371,7 @@ def upload_excel():
                 row["Deposit Amount"]
             )
 
-
-            # ==========================
             # FIND CUSTOMER
-            # ==========================
 
             cursor.execute(
                 """
@@ -406,10 +390,7 @@ def upload_excel():
 
             customer = cursor.fetchone()
 
-
-            # ==========================
             # CUSTOMER NOT FOUND
-            # ==========================
 
             if not customer:
 
@@ -431,10 +412,7 @@ def upload_excel():
 
                 continue
 
-
-            # ==========================
             # SAVE TRANSACTION
-            # ==========================
 
             cursor.execute(
                 """
@@ -459,10 +437,7 @@ def upload_excel():
 
             transaction_id = cursor.lastrowid
 
-
-            # ==========================
             # SUSPICIOUS CHECK
-            # ==========================
 
             if deposit_amount > 100000:
 
@@ -628,10 +603,7 @@ def update_customer(customer_id):
       address = data.get("address")
       status = data.get("status")
 
-
-      # ==========================
       # VALIDATION
-      # ==========================
 
       if not name or not customer_number:
 
@@ -662,10 +634,7 @@ def update_customer(customer_id):
           dictionary=True
       )
 
-
-      # ==========================
       # CHECK CUSTOMER EXISTS
-      # ==========================
 
       cursor.execute(
           """
@@ -687,10 +656,7 @@ def update_customer(customer_id):
                   "Customer not found"
           }), 404
 
-
-      # ==========================
       # CHECK DUPLICATE CUSTOMER NUMBER
-      # ==========================
 
       cursor.execute(
           """
@@ -718,10 +684,7 @@ def update_customer(customer_id):
                   "Customer number already exists"
           }), 400
 
-
-      # ==========================
       # UPDATE CUSTOMER
-      # ==========================
 
       cursor.execute(
           """
